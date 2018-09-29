@@ -112,7 +112,7 @@ $compile scrutinizer-tests.scm -analyze-only
 $compile typematch-tests.scm -specialize -no-warnings
 ./a.out
 
-$compile scrutiny-tests.scm -analyze-only -verbose 2>scrutiny.out
+$compile scrutiny-tests.scm -analyze-only -specialize -verbose 2>scrutiny.out
 $compile specialization-tests.scm -analyze-only -verbose -specialize 2>specialization.out
 
 # these are sensitive to gensym-names, so make them optional

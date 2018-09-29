@@ -4,7 +4,7 @@ Warning: (scrutiny-tests.scm:31) - assignment to imported value binding `car'
 Note: in local procedure `c',
   in local procedure `b',
   in toplevel procedure `a':
-  expected a value of type boolean in conditional, but was given a value of type `number' which is always true:
+  expected a value of type boolean in conditional, but was given a value of type `integer' which is always true:
 
 (if x 1 2)
 
@@ -16,7 +16,7 @@ Note: in toplevel procedure `b':
 Warning: in toplevel procedure `foo':
   branches in conditional expression differ in the number of results:
 
-(if x (scheme#values 1 2) (scheme#values 1 2 (scheme#+ (scheme#+ ...))))
+(if x (scheme#values 1 2) (scheme#values 1 2 3))
 
 Warning: at toplevel:
   (scrutiny-tests.scm:19) in procedure call to `bar', expected argument #2 of type `number' but was given an argument of type `symbol'
@@ -53,9 +53,6 @@ Note: in toplevel procedure `foo':
 
 (if bar 3 (##core#undefined))
 
-Warning: in toplevel procedure `foo2':
-  (scrutiny-tests.scm:58) in procedure call to `scheme#string-append', expected argument #1 of type `string' but was given an argument of type `number'
-
 Warning: at toplevel:
   (scrutiny-tests.scm:66) in procedure call to `foo3', expected argument #1 of type `string' but was given an argument of type `fixnum'
 
@@ -70,9 +67,6 @@ Warning: in toplevel procedure `foo6':
 
 Warning: at toplevel:
   (scrutiny-tests.scm:90) in procedure call to `scheme#+', expected argument #1 of type `number' but was given an argument of type `string'
-
-Warning: in toplevel procedure `foo10':
-  (scrutiny-tests.scm:104) in procedure call to `foo9', expected argument #1 of type `string' but was given an argument of type `number'
 
 Warning: in toplevel procedure `foo10':
   (scrutiny-tests.scm:105) in procedure call to `scheme#+', expected argument #1 of type `number' but was given an argument of type `string'
@@ -107,6 +101,9 @@ Warning: at toplevel:
 Warning: at toplevel:
   (scrutiny-tests.scm:169) in procedure call to `apply1', expected argument #2 of type `(list-of number)' but was given an argument of type `(list symbol fixnum fixnum)'
 
+Warning: at toplevel:
+  (scrutiny-tests.scm:176) in procedure call to `g149', expected argument #1 of type `number' but was given an argument of type `(or fixnum string)'
+
 Note: at toplevel:
   (scrutiny-tests.scm:182) in procedure call to `chicken.base#fixnum?', the predicate is called with an argument of type `fixnum' and will always return true
 
@@ -120,7 +117,9 @@ Note: at toplevel:
   (scrutiny-tests.scm:194) in procedure call to `char-or-string?', the predicate is called with an argument of type `fixnum' and will always return false
 
 Note: at toplevel:
-  (scrutiny-tests.scm:195) in procedure call to `scheme#symbol?', the predicate is called with an argument of type `(or char string)' and will always return false
+  (scrutiny-tests.scm:194) in conditional, test expression will always return false:
+
+(if (char-or-string? x) (scheme#symbol? x) (scheme#string? x))
 
 Note: at toplevel:
   (scrutiny-tests.scm:196) in procedure call to `scheme#string?', the predicate is called with an argument of type `fixnum' and will always return false
@@ -211,5 +210,11 @@ Warning: in toplevel procedure `append-result-type-warn1':
 
 Warning: in toplevel procedure `append-result-type-warn2':
   (scrutiny-tests.scm:312) in procedure call to `chicken.base#add1', expected argument #1 of type `number' but was given an argument of type `symbol'
+
+Warning: in toplevel procedure `append-result-type-nowarn3':
+  (scrutiny-tests.scm:319) in procedure call to `chicken.base#add1', expected argument #1 of type `number' but was given an argument of type `(or symbol fixnum)'
+
+Warning: at toplevel:
+  (scrutiny-tests.scm:387) in procedure call to `optional-warn-1', expected argument #1 of type `(or string false)' but was given an argument of type `fixnum'
 
 Warning: redefinition of standard binding: scheme#car

@@ -16,17 +16,11 @@ Note: at toplevel:
 (if (scheme#string? a) 'ok 'no)
 
 Note: at toplevel:
-  (specialization-tests.scm:10) in procedure call to `scheme#input-port?', the predicate is called with an argument of type `input/output-port' and will always return true
+  (specialization-tests.scm:9) in procedure call to `scheme#output-port?', the predicate is called with an argument of type `input-port' and will always return false
 
 Note: at toplevel:
-  (specialization-tests.scm:10) expected a value of type boolean in conditional, but was given a value of type `true' which is always true:
+  (specialization-tests.scm:9) in conditional, test expression will always return false:
 
-(if (scheme#input-port? p) 'ok 'no)
-
-Note: at toplevel:
-  (specialization-tests.scm:11) in procedure call to `scheme#output-port?', the predicate is called with an argument of type `input/output-port' and will always return true
-
-Note: at toplevel:
-  (specialization-tests.scm:11) expected a value of type boolean in conditional, but was given a value of type `true' which is always true:
-
-(if (scheme#output-port? p) 'ok 'no)
+(if (scheme#output-port? p)
+  (let ((t12 ...)) (if (scheme#output-port? p) 'ok 'no))
+  (##core#undefined))

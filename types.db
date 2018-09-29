@@ -53,10 +53,7 @@
 
 ;; scheme
 
-(scheme#not (#(procedure #:pure #:foldable) scheme#not (*) boolean)
-	    ((true) (false) (let ((#(tmp) #(1))) '#f))
-	    ((false) (true) (let ((#(tmp) #(1))) '#t))
-	    (((not boolean)) (false) (let ((#(tmp) #(1))) '#f)))
+(scheme#not (#(procedure #:pure #:foldable #:predicate false) scheme#not (*) boolean))
 
 (scheme#boolean? (#(procedure #:pure #:predicate boolean) scheme#boolean? (*) boolean))
 
@@ -155,8 +152,9 @@
 		 ((pair (or fixnum char boolean eof null undefined)) (##sys#setislot #(1) '1 #(2)))
 		 ((pair *) (##sys#setslot #(1) '1 #(2))))
 
-(scheme#null? (#(procedure #:pure #:predicate null) scheme#null? (*) boolean))
-(scheme#list? (#(procedure #:pure #:predicate list) scheme#list? (*) boolean))
+;; TODO: these are clean, right?
+(scheme#null? (#(procedure #:clean #:pure #:predicate null) scheme#null? (*) boolean))
+(scheme#list? (#(procedure #:clean #:pure #:predicate list) scheme#list? (*) boolean))
 
 ;; special cased (see scrutinizer.scm)
 (scheme#list (#(procedure #:pure) scheme#list (#!rest) list))
@@ -687,10 +685,10 @@
 (scheme#procedure? (#(procedure #:pure #:predicate procedure) scheme#procedure? (*) boolean))
 
 
-(scheme#map (forall (a b) (#(procedure #:enforce) scheme#map ((procedure (a #!rest) b) (list-of a) #!rest list) (list-of b))))
+(scheme#map (forall (a b) (#(procedure #:clean #:enforce) scheme#map ((procedure (a) b) (list-of a) #!rest list) (list-of b))))
 
 (scheme#for-each
- (forall (a) (#(procedure #:enforce) scheme#for-each ((procedure (a #!rest) . *) (list-of a) #!rest list) undefined)))
+ (forall (a) (#(procedure #:enforce) scheme#for-each ((procedure (a) . *) (list-of a) #!rest list) undefined)))
 
 (scheme#apply (#(procedure #:enforce) scheme#apply (procedure #!rest) . *))
 (##sys#apply (#(procedure #:enforce) ##sys#apply (procedure #!rest) . *))
@@ -971,9 +969,9 @@
 
 (chicken.base#getter-with-setter
  (#(procedure #:clean #:enforce)
-  chicken.base#getter-with-setter
-  ((procedure (#!rest) *) (procedure (* #!rest) . *) #!optional string)
-  procedure))
+   chicken.base# getter-with-setter
+   (procedure procedure #!optional string)
+   procedure))
 (chicken.base#setter (#(procedure #:clean #:enforce) chicken.base#setter (procedure) procedure))
 
 (chicken.base#signum (#(procedure #:clean #:enforce) chicken.base#signum (number) (or fixnum float cplxnum))
@@ -1036,8 +1034,8 @@
           (list-of (pair c (or b d))))))
 
 (chicken.base#atom? (#(procedure #:pure #:foldable) chicken.base#atom? (*) boolean)
-       ((pair) (let ((#(tmp) #(1))) '#f))
-       (((not (or pair list))) (let ((#(tmp) #(1))) '#t)))
+		    ((pair) (let ((#(tmp) #(1))) '#f))
+		    (((not pair)) (let ((#(tmp) #(1))) '#t)))
 
 (chicken.base#butlast (forall (a) (#(procedure #:clean #:enforce) chicken.base#butlast ((pair a *)) (list-of a))))
 (chicken.base#chop (forall (a) (#(procedure #:clean #:enforce) chicken.base#chop ((list-of a) fixnum) (list-of a))))

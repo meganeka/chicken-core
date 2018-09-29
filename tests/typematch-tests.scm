@@ -37,6 +37,7 @@
      (apply
       (lambda (t1 t2)
 	`(begin
+	   (print ',(strip-syntax e))
 	   (subtype ,t1 ,t2)
 	   (not-subtype ,t2 ,t1)))
       (cdr e)))))
@@ -47,6 +48,7 @@
      (apply
       (lambda (t1 t2)
 	`(begin
+	   (print ',(strip-syntax e))
 	   (subtype ,t1 ,t2)
 	   (subtype ,t2 ,t1)))
       (cdr e)))))
@@ -57,6 +59,7 @@
      (apply
       (lambda (t1 t2)
 	`(begin
+	   (print ',(strip-syntax e))
 	   (not-subtype ,t1 ,t2)
 	   (not-subtype ,t2 ,t1)))
       (cdr e)))))
@@ -66,11 +69,10 @@
    (lambda (e _i _c)
      (apply
       (lambda (t x)
-	`(test-equal ',(strip-syntax e)
-	   (compiler-typecase ,x
-	     (,t #t)
-	     (else #f))
-	   #t))
+	`(let ([res (compiler-typecase ,x
+		      (,t #t)
+		      (else #f))])
+	   (test-equal ',(strip-syntax e) res #t)))
       (cdr e)))))
 
 (define-syntax infer-not
@@ -90,13 +92,13 @@
    (lambda (e _i _c)
      (apply
       (lambda (types x)
-	`(test-equal ',(strip-syntax e)
-	   (compiler-typecase ,x
-	     ,@(map (lambda (t) `(,t #f)) (cdr (reverse types)))
-	     (,(car (reverse types)) #t)
-	     ;; (else #f)
-	     )
-	   #t))
+	(let ([expected (car (reverse types))])
+	  `(test-equal ',(strip-syntax e)
+		       (compiler-typecase ,x
+			 ,@(map (lambda (t) `(,t ',t)) (cdr (reverse types)))
+			 (,(car (reverse types)) ',(car (reverse types)))
+			 (else #f))
+		       ',expected)))
       (cdr e)))))
 
 (define-syntax ms
@@ -127,6 +129,7 @@
      (apply
       (lambda (t of-t not-of-t)
 	`(begin
+	   (print ',e)
 	   (infer ,t ,of-t)
 	   (infer-not ,t ,not-of-t)))
       (cdr e)))))
@@ -248,7 +251,7 @@
 (incompatible pair list)
 
 (incompatible (procedure (*) *) (procedure () *))
-(compatible (procedure (#!rest) . *) (procedure (*) . *))
+(subtype (procedure (#!rest) . *) (procedure (*) . *))
 (incompatible (procedure () *) (procedure () * *))
 
 (infer (forall (a) (procedure (#!rest a) a)) +)
@@ -270,7 +273,7 @@
 (define cadr-alike cadr)
 (define cddr-alike cddr)
 
-(: l (list-of fixnum))
+(: l (list fixnum fixnum fixnum))
 (: p (pair fixnum (pair fixnum fixnum)))
 
 (define l '(1 2 3))
@@ -309,14 +312,14 @@
 (compatible (pair fixnum (list fixnum)) (list fixnum fixnum))
 
 (incompatible (pair * *) list)
-(incompatible (pair * list) list)
+(subtype (pair * list) list)
 (incompatible (pair fixnum *) (list-of *))
 (incompatible (pair fixnum *) (list-of fixnum))
 (incompatible (pair fixnum (list-of *)) (list-of fixnum))
-(incompatible (pair fixnum (list-of fixnum)) (list-of fixnum))
+(subtype (pair fixnum (list-of fixnum)) (list-of fixnum))
 (incompatible (pair char (list-of fixnum)) (list-of fixnum))
 (incompatible (pair fixnum (list-of char)) (list-of fixnum))
-(incompatible (pair fixnum (list-of fixnum)) (list-of fixnum))
+(subtype (pair fixnum (list-of fixnum)) (list-of fixnum))
 
 ;;; special cases
 
@@ -355,13 +358,13 @@
 (: f2 (forall (a) ((list-of a) -> a)))
 (define (f2 x) (car x))
 (infer-last (symbol fixnum (or fixnum symbol))
-	    (f2 (list (if bar 1 'a))))
+	    (f2 (list (if (the * bar) 1 'a))))
 
 (: f3 (forall (a) ((list-of a) -> a)))
 (define f3 car)
 (define xxx '(1))
 
-(infer fixnum (f3 (the (or (vector-of fixnum) (list-of fixnum)) xxx)))
+;; (infer fixnum (f3 (the (or (vector-of fixnum) (list-of fixnum)) xxx))) ; what is this testing?
 
 (infer (forall (a) (or (vector-of a) (list-of a))) (list 123))
 
@@ -390,6 +393,152 @@
 (infer-last (bignum fixnum integer) #x4fffffff)
 
 ;; Always a bignum
-(infer-last (fixnum bignum) #x7fffffffffffffff)
+(assert
+ (compiler-typecase #x7fffffffffffffff
+   (fixnum #f)
+   (bignum #t)))
+
+(assert
+ (compiler-typecase (null? (the list xxx))
+   (true #f)
+   (false #f)
+   (boolean #t)))
+
+;; Do the branches refine the variable's type
+(let ((a (the (or fixnum false) 1)))
+  (if a
+      (compiler-typecase a (fixnum a))
+      (compiler-typecase a (false a))))
+
+(infer-last ((procedure () . *)
+	     (->)
+	     procedure)
+	    (the procedure xxx))
+
+(infer-last ((procedure () . *)
+		      (->)
+		      (procedure (*) *))
+		     (the (procedure (*) *) xxx))
+
+(infer-last ((procedure () . *)
+		      (->)
+		      (procedure (*) *)
+		      (procedure (*) . *))
+		     (the (procedure (*) . *) xxx))
+
+(infer-last ((procedure () . *)
+	     (->)
+	     (procedure (*) *)
+	     (procedure (*) * *))
+	    (the (procedure (*) * *) xxx))
+
+(infer-last ((procedure () . *)
+	     (->)
+	     (procedure (*) *))
+	    (the (procedure (* #!optional *) *) xxx))
+
+;; Is the vector type refined properly
+(: foo? (* --> boolean : (vector fixnum)))
+(declare (not inline foo?))
+(define (foo? a) #t)
+(let ((a (the (vector-of (or fixnum string)) #(1))))
+  (if (foo? a)
+      (compiler-typecase a ((vector fixnum) 1))
+      (compiler-typecase a ((not (vector fixnum)) 1))))
+
+(test-group "globals should have type refinement, too"
+  (: global-1 (list-of fixnum))
+  (define global-1 '(1))
+  (let ([f (lambda () (if (null? global-1)
+		     (compiler-typecase global-1 (null #f))
+		     (compiler-typecase global-1 ((pair fixnum (list-of fixnum)) (car global-1)))))])
+    (compiler-typecase global-1 ((list-of fixnum) 1))
+    (test-equal (f) 1)
+    (set! global-1 '(2)) (test-equal (f) 2)
+    (set! global-1 '()) (test-equal (f) #f))
+  (test-end))
+
+(test-group "alias refining"
+  (let* ([a (the * 1)]
+	 [r (fixnum? a)])
+    (let ([res (if r
+		   (compiler-typecase a (fixnum (+ a 1)))
+		   (compiler-typecase a ((not fixnum) 1)))])
+      (test-equal res 2))
+    (set! a 'foo)
+    (compiler-typecase a (symbol 1))
+    (compiler-typecase r (boolean 1))
+
+    (let ([res (if r
+		   (compiler-typecase a (symbol 'orig-was-fixnum))
+		   (compiler-typecase a (symbol 1)))])
+      (test-equal res 'orig-was-fixnum)))
+
+  (let ([a (the * 1)]
+	[b (the * 2)]
+	[c (the * #f)])
+    (if (if a
+	    (not b)
+	    #f)
+	(compiler-typecase b (false 1))
+	(begin
+	  (infer-last (false (not false) *) b)
+	  (if (if c
+		  (fixnum? a)
+		  #f)
+	      (compiler-typecase a (fixnum 1))
+	      (begin
+		(infer-last (false (not false) *) a)
+		(assert (fixnum? (the * a))))))))
+
+  (let ([a (the * 1)]
+	[b (the * 2)])
+    ;; (or (and a (not b))
+    ;; 	(and b (not a)))
+    (when (let ((tmp (if a
+			 (not b)
+			 '#f)))
+	    (if tmp
+		tmp
+		(if b
+		    (not a)
+		    '#f)))
+      (infer-last (false (not false) true (not true) *) a)
+      (infer-last (false (not false) true (not true) *) b)))
+
+  (test-group "smashing"
+    (: fix? (* --> boolean : (list fixnum)))
+    (define (fix? a) #t)
+    (define (smash a) 1) ; <- this should cause smashing
+    (let ([a (the (list (or string fixnum)) '(1))])
+      (when (fix? a)
+	(compiler-typecase a ((list fixnum) 1))
+	(smash a)
+	(infer-last ((list fixnum) (or pair null)) a)))
+
+    (let ([a (the (list (or string fixnum)) '(1))])
+      (infer (list (or string fixnum)) a)
+
+      (when (and (fix? a) (smash a))
+	(infer-last ((list fixnum) (or pair null)) a))))
+
+  (lambda (a b)
+    (if (or (and (not a) (boolean? b))
+	    (and (not b) (boolean? a)))
+	(begin
+	  (infer-last (false (not false) true (not true) boolean *) a)
+	  (infer-last (false (not false) true (not true) boolean *) b))
+	(begin
+	  (infer-last (false (not false) true (not true) boolean *) a)
+	  (infer-last (false (not false) true (not true) boolean *) b))))
+
+  (test-group "##scheme#not special-case"
+    (let ((a (the (or fixnum symbol) 'a)))
+      (if (not (fixnum? a))
+	  (let ([res a])
+	    (infer symbol res))
+	  (let ([res a])
+	    (infer fixnum res))))))
 
 (test-exit)
+

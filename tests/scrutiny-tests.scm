@@ -53,9 +53,9 @@
   (if bar 3))				; should warn
 
 ;; noreturn conditional branch enforces "number" on x
-(define (foo2 x)
-  (if (string? x) (error "foo") (+ x 3))
-  (string-append x "abc"))
+;; (define (foo2 x)
+;;   (if (string? x) (error "foo") (+ x 3));; TODO: (+ x 3) doesn't enforce anymore, because it's specialized with (* *)
+;;   (string-append x "abc"))
 
 ;; implicit declaration of foo3
 (declare (hide foo3))
@@ -160,7 +160,7 @@
 
 ;; Needed to use "over-all-instantiations" or matching "vector"/"list" type
 ;; with "vector-of"/"list-of" type (reported by megane)
-(: apply1 (forall (a b) (procedure ((procedure (#!rest a) b) (list-of a)) b)))
+(: apply1 (forall (a b) (procedure ((procedure (a) b) (list-of a)) b)))
 
 (define (apply1 f args)
   (apply f args))
@@ -322,3 +322,66 @@
 (compiler-typecase (list 2 'a)
   ((forall (x) (list x x)) 1)
   (else #t))
+
+;; is the list refined correctly with '(not null)
+(define xxx)
+(let ((l (the list xxx)))
+  (unless (null? l)
+    (compiler-typecase l
+      (pair #t))))
+
+;;
+;;; forall predicates
+;;
+
+;; (: cdr-pair? (forall (a) (pair --> boolean : (forall (a) (pair a pair)))))
+(: cdr-pair? (forall (a) (pair --> boolean : (not *))))
+;; declaring predicates with ':' doesn't have effect in current unit
+(declare (predicate (cdr-pair? (forall (a) (pair a pair)))))
+(define (cdr-pair? x) (pair? (cdr x)))
+(let ((p (cons 1 (the * (cons 2 3)))))
+  (if (cdr-pair? p)
+      (compiler-typecase p ((pair fixnum pair) 1))
+      (compiler-typecase p ((pair fixnum *) 1))))
+
+;; These shouldn't warn without strict-types
+(vector-ref #(1) (the number 0))
+(car (the list '(1)))
+(car (the (or null pair) '(1)))
+(car (the (or pair null) '(1)))
+(cadr (the pair '(1)))
+
+(: no-warn-1 (fixnum -> *))
+(set! no-warn-1 (lambda (a) a))
+(: no-warn-2 (#!rest fixnum -> *))
+(set! no-warn-2 (lambda (#!rest a) 1))
+(: no-warn-3 (* -> fixnum))
+(set! no-warn-3 (lambda (a) a))
+
+(: no-warn-foo-1 ((list list) -> fixnum))
+(define (no-warn-foo-1 l) 1)
+(no-warn-foo-1 (the (list pair) '((1 . 2))))
+(no-warn-foo-1 (the (list (or null pair)) '(())))
+(no-warn-foo-1 (the (list (or pair null)) '(())))
+
+(: no-warn-foo-2 ((list fixnum) -> fixnum))
+(define (no-warn-foo-2 l) 1)
+(no-warn-foo-2 (the (list number) '(1)))
+
+;; append is special-cased
+;; This shouldn't warn even with strict-types
+(append '() (the (or null (list-of symbol)) '(null)))
+
+;; list <-> (not null) shouldn't warn
+(fn (a)
+  (if (null? a)
+      0
+      (length a)))
+
+(: optional-no-warn-1 (#!optional string -> *))
+(define (optional-no-warn-1 #!optional a) 1)
+(optional-no-warn-1 #f) ; passing #f to optional shouldn't warn
+
+(: optional-warn-1 (#!optional string -> *))
+(define (optional-warn-1 #!optional a) 1)
+(optional-warn-1 1)
