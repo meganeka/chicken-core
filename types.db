@@ -969,7 +969,7 @@
 
 (chicken.base#getter-with-setter
  (#(procedure #:clean #:enforce)
-   chicken.base# getter-with-setter
+   chicken.base#getter-with-setter
    (procedure procedure #!optional string)
    procedure))
 (chicken.base#setter (#(procedure #:clean #:enforce) chicken.base#setter (procedure) procedure))
