@@ -262,6 +262,9 @@
 (test (< (pair * (pair x (list-of *))) (list-of *)))
 (test (< (pair x (pair x (list-of *))) (list-of *)))
 (test (< (pair x (pair x (list-of x))) (list-of x)))
+(test (< (list-of *) (or pair null)))
+(test (< (list-of *) (or (pair * *) null)))
+(test (< (list-of x) (or (pair x *) null)))
 
 ;;; ports
 
@@ -446,6 +449,9 @@
 
 (test (~> (or pair null) (list-of a) (list-of a)))
 (test (~> (list-of a) (not null) (pair a (list-of a))))
+
+(test (~> (or (pair * *) null) (list-of *) (list-of *)))
+;; (test (~> (or (pair x (list-of x)) null) (forall (x) (list-of x)) (list-of x))) ;; TODO: enable
 
 (test (~> (pair (or x y) *) (pair (not x) *) (pair y *)))
 (test (~> (pair (or x y) *) (not (pair x *)) (pair y *)))

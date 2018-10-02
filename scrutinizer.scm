@@ -1329,6 +1329,10 @@
 	  ((eq? t2 'undefined) #f)
 	  ((maybe-expand-type t1) => (cut match* <> t2))
 	  ((maybe-expand-type t2) => (cut match* t1 <>))
+	  ;; For (or pair null) > (list-of X) Special list case
+	  ;; TODO: remove
+	  [(and (pair? t1) (eq? 'or (car t1)) (lset=/eq? '(null pair) (cdr t1)))
+	   (match* '(or (pair * *) null) t2)]
           ;; t2 (not (not foo)) -> foo
 	  ((and (pair? t2) (eq? 'not (car t2))
 		(pair? (cdr t2))
@@ -1345,9 +1349,15 @@
 	    (lambda (t) (match* t1 t))))
 	  ((and (pair? t1) (eq? 'not (car t1)))
 	   (match-t1-not (second t1) t2))
-	  ;; (or pair null) > (list-of X) Special list case
-	  [(and (pair? t1) (eq? 'or (car t1)) (lset=/eq? '(null pair) (cdr t1))
-		(pair? t2) (eq? 'list-of (car t2)))]
+	  ;; (or null (pair x y)) > (list-of z)
+	  ((and (pair? t2) (eq? 'list-of (car t2))
+		(pair? t1) (eq? 'or (car t1)) (pair? (cddr t1)) (not (pair? (cdddr t1)))
+		(or (and (eq? 'null (second t1)) (pair? (third t1)) (eq? 'pair (car (third t1)))
+			 (third t1))
+		    (and (eq? 'null (third t1)) (pair? (second t1)) (eq? 'pair (car (second t1)))
+			 (second t1))))
+	   => (lambda (p) (and (match* (second p) (second t2))
+			  (match* (third p) t2))))
 	  ((and (pair? t1) (eq? 'or (car t1)))
 	   (over-all-instantiations
 	    (cdr t1)
