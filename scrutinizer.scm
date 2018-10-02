@@ -950,8 +950,8 @@
 				       (a (or (blist-type var flow) (alist-ref var e)))
 				       (argr (resolve argr typeenv))
 				       (oparg? (eq? arg (first subs))))
-				  (dd "  normal call ~a var: ~a a: ~a argr: ~a arg: ~a oparg: ~a"
-				      pn var a argr arg oparg?)
+				  (dd " Variable ~aarg `~a' of type `~a': argr: ~a"
+				      var (if oparg? "(op) " "") a argr)
 				  (cond ((and pt accept-pred? (not oparg?))
 					 (let* ((te* (append typeenv (type-typeenv pt)))
 						(_ (match-types a pt te*)) ;; unify
@@ -1667,9 +1667,10 @@
 ;;
 
 (define (refine-types t1 t2)
-  (dd " refine-types: ~a ~a" t1 t2)
+  (dd " refine-types/top: ~a ~~> ~a" t1 t2)
 
   (define (refine t1 t2 te)
+    (dd "  refine: ~a ~~> ~a te: ~a" t1 t2 te)
     (let loop ((t1 t1) (t2 t2))
       (cond
        ((maybe-expand-type t1) => (cut loop <> t2))
@@ -1738,7 +1739,7 @@
 
   (let* ((te (type-typeenv `(or ,t1 ,t2)))
 	 (rt (or (refine t1 t2 te) t2)))
-    (dd " refine-types: ~a ~a -> ~a" t1 t2 rt)
+    (dd " refine-types/top: ~a ~~> ~a -> ~a" t1 t2 rt)
     (if (eq? rt t2)
 	rt
 	(simplify-type rt))))
